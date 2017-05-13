@@ -4,7 +4,7 @@ package container
 import (
 	"bytes"
 	"compress/flate"
-	"github.com/alanctgardner/gogen-avro/container/avro"
+	"github.com/agorobets/gogen-avro/container/avro"
 	"io"
 )
 
@@ -38,6 +38,7 @@ type Writer struct {
 	blockBuffer      *bytes.Buffer
 	compressedWriter io.Writer
 	nextBlockRecords int64
+	headerWritten    bool
 }
 
 /*
@@ -70,15 +71,17 @@ func NewWriter(writer io.Writer, codec Codec, recordsPerBlock int64, schema stri
 		avroWriter.compressedWriter = avroWriter.blockBuffer
 	}
 
-	err = avroWriter.writeHeader(schema)
-	if err != nil {
-		return nil, err
+	if schema != "" {
+		err = avroWriter.WriteHeader(schema)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return avroWriter, nil
 }
 
-func (avroWriter *Writer) writeHeader(schema string) error {
+func (avroWriter *Writer) WriteHeader(schema string) error {
 	header := &avro.AvroContainerHeader{
 		Magic: [4]byte{'O', 'b', 'j', 1},
 		Meta: map[string][]byte{
@@ -87,6 +90,7 @@ func (avroWriter *Writer) writeHeader(schema string) error {
 		},
 		Sync: avroWriter.syncMarker,
 	}
+	avroWriter.headerWritten = true
 	return header.Serialize(avroWriter.writer)
 }
 
@@ -97,6 +101,15 @@ func (avroWriter *Writer) writeHeader(schema string) error {
 */
 func (avroWriter *Writer) WriteRecord(record AvroRecord) error {
 	var err error
+
+	// Lazily write the header, if it's not written before
+	if !avroWriter.headerWritten {
+		err = avroWriter.WriteHeader(schema)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Serialize the new record into the compressed writer
 	err = record.Serialize(avroWriter.compressedWriter)
 	if err != nil {
@@ -118,6 +131,11 @@ func (avroWriter *Writer) WriteRecord(record AvroRecord) error {
   This must be called before the underlying io.Writer is closed.
 */
 func (avroWriter *Writer) Flush() error {
+	// Don't flush if unused
+	if !avroWriter.headerWritten || avroWriter.nextBlockRecords == 0 {
+		return nil
+	}
+
 	// Write out all of the buffered records as a new block
 	// Must be called before closing to ensure the last block is written
 	if fwWriter, ok := avroWriter.compressedWriter.(CloseableResettableWriter); ok {
