@@ -112,7 +112,7 @@ func (avroWriter *Writer) WriteRecord(record AvroRecord) error {
 
 	// Lazily write the header, if it's not written before
 	if !avroWriter.headerWritten {
-		err = avroWriter.WriteHeader(schema)
+		err = avroWriter.WriteHeader(record.Schema())
 		if err != nil {
 			return err
 		}
