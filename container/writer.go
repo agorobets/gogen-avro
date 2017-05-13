@@ -82,6 +82,10 @@ func NewWriter(writer io.Writer, codec Codec, recordsPerBlock int64, schema stri
 }
 
 func (avroWriter *Writer) WriteHeader(schema string) error {
+	if avroWriter.headerWritten {
+		return nil
+	}
+
 	header := &avro.AvroContainerHeader{
 		Magic: [4]byte{'O', 'b', 'j', 1},
 		Meta: map[string][]byte{
@@ -92,6 +96,10 @@ func (avroWriter *Writer) WriteHeader(schema string) error {
 	}
 	avroWriter.headerWritten = true
 	return header.Serialize(avroWriter.writer)
+}
+
+func (avroWriter *Writer) SetHeaderWritten() {
+	avroWriter.headerWritten = true
 }
 
 /*
