@@ -94,7 +94,8 @@ func (avroWriter *Writer) WriteHeader(schema string) error {
 		},
 		Sync: avroWriter.syncMarker,
 	}
-	avroWriter.headerWritten = true
+
+	avroWriter.SetHeaderWritten()
 	return header.Serialize(avroWriter.writer)
 }
 
