@@ -4,7 +4,7 @@ package container
 import (
 	"bytes"
 	"compress/flate"
-	"github.com/agorobets/gogen-avro/container/avro"
+	"github.com/alanctgardner/gogen-avro/container/avro"
 	"io"
 )
 
@@ -94,7 +94,8 @@ func (avroWriter *Writer) WriteHeader(schema string) error {
 		},
 		Sync: avroWriter.syncMarker,
 	}
-	avroWriter.headerWritten = true
+
+	avroWriter.SetHeaderWritten()
 	return header.Serialize(avroWriter.writer)
 }
 
